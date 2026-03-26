@@ -1,9 +1,7 @@
 import { jwtVerify, SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'super_secret_fallback_key_for_prime_123'
-);
+const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export async function signToken(payload: any) {
   return await new SignJWT(payload)
@@ -13,10 +11,10 @@ export async function signToken(payload: any) {
     .sign(SECRET_KEY);
 }
 
-export async function verifyToken(token: string) {
+export async function verifyToken(token: string): Promise<{ userId: string; email: string } | null> {
   try {
     const { payload } = await jwtVerify(token, SECRET_KEY);
-    return payload;
+    return payload as { userId: string; email: string };
   } catch (error) {
     return null;
   }

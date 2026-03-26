@@ -58,7 +58,7 @@ export async function login(formData: FormData) {
       return { error: 'Invalid email or password' };
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = user.password ? await bcrypt.compare(password, user.password) : false;
     if (!isMatch) {
       return { error: 'Invalid email or password' };
     }

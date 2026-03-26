@@ -2,10 +2,56 @@
 
 import { useCart } from '@/lib/CartContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function CartSidebar() {
-  const { isCartOpen, setIsCartOpen, items, updateQuantity, removeFromCart, cartTotal } = useCart();
+  const { isCartOpen, setIsCartOpen, items, updateQuantity, removeFromCart, cartTotal, clearCart } = useCart();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
+
+  async function handleCheckout() {
+    if (items.length === 0) return;
+    
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          items: items.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            color: item.color,
+          })),
+          total: cartTotal 
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error(data.error || 'Checkout failed');
+      }
+
+      clearCart();
+      setIsCartOpen(false);
+      router.push('/dashboard?order=success');
+    } catch (err: any) {
+      setError(err.message || 'Checkout failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -80,12 +126,21 @@ export default function CartSidebar() {
             {/* Footer Checkout */}
             {items.length > 0 && (
               <div className="p-6 border-t border-white/10 bg-black/40">
+                {error && (
+                  <div className="bg-red-500/20 border border-red-500/50 text-white px-4 py-2 rounded-xl mb-4 text-sm text-center">
+                    {error}
+                  </div>
+                )}
                 <div className="flex justify-between items-center mb-6">
                   <span className="text-white/60 tracking-widest uppercase text-sm">Total</span>
                   <span className="font-bebas text-4xl text-white tracking-wider">${cartTotal.toFixed(2)}</span>
                 </div>
-                <button className="w-full bg-white text-black font-bebas text-2xl tracking-widest py-4 rounded-full hover:scale-105 transition-transform">
-                  CHECKOUT SECURELY
+                <button 
+                  onClick={handleCheckout}
+                  disabled={loading}
+                  className="w-full bg-white text-black font-bebas text-2xl tracking-widest py-4 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  {loading ? 'PROCESSING...' : 'CHECKOUT SECURELY'}
                 </button>
               </div>
             )}
